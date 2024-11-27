@@ -1,0 +1,147 @@
+version: '3.9'
+
+services:
+  config-service:
+    build:
+      context: .
+      dockerfile: ./ConfigService/Dockerfile
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - microservices-network
+
+  discovery-service:
+    build:
+      context: .
+      dockerfile: ./DiscoveryService/Dockerfile
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      config-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: ./GatewayService/Dockerfile
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+    ports:
+      - 8080:8080
+    networks:
+      - microservices-network
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./UserService/Dockerfile
+    depends_on:
+      postgres-user-service:
+        condition: service_started
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  post-service:
+    build:
+      context: .
+      dockerfile: ./PostService/Dockerfile
+    depends_on:
+      postgres-post-service:
+        condition: service_started
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  review-service:
+    build:
+      context: .
+      dockerfile: ./ReviewService/Dockerfile
+    depends_on:
+      postgres-review-service:
+        condition: service_started
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  comment-service:
+    build:
+      context: .
+      dockerfile: ./CommentService/Dockerfile
+    depends_on:
+      postgres-comment-service:
+        condition: service_started
+      discovery-service:
+        condition: service_healthy
+    networks:
+      - microservices-network
+
+  postgres-user-service:
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: user_service_db
+    volumes:
+      - postgres_data_user_service:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  postgres-post-service:
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: post_service_db
+    volumes:
+      - postgres_data_post_service:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  postgres-review-service:
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: review_service_db
+    volumes:
+      - postgres_data_review_service:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  postgres-comment-service:
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: comment_service_db
+    volumes:
+      - postgres_data_comment_service:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  adminer:
+    image: adminer
+    restart: always
+    ports:
+      - 8081:8080
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  postgres_data_user_service:
+  postgres_data_post_service:
+  postgres_data_review_service:
+  postgres_data_comment_service:
